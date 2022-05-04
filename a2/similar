@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+
+"""
+COMP3311: Similar Script - Assignment 2, T12020
+Madeleine Dobbie - z5112961
+"""
+
+import sqlite3,sys
+
+if len(sys.argv) != 3:
+  print("Usage:",sys.argv[0],"TITLE","NUM")
+  sys.exit(1)
+
+title = sys.argv[1]
+numOfMovies = int(sys.argv[2])
+
+con = sqlite3.connect('a2.db')
+
+cur = con.cursor()
+
+cur.execute('SELECT tb1.movieID, GROUP_CONCAT(genre.genre) FROM genre JOIN (SELECT movie.id as movieID FROM movie WHERE movie.title="{}" COLLATE NOCASE ORDER BY movie.year DESC LIMIT 1) AS tb1 ON tb1.movieID=genre.movie_id'.format(title))
+
+g = cur.fetchone()
+iD,genres = g
+genres = genres.split(",")
+
+cur.execute('SELECT GROUP_CONCAT(keyword.keyword) FROM keyword JOIN (SELECT movie.id AS mID FROM movie WHERE movie.title="{}" COLLATE NOCASE ORDER BY movie.year DESC LIMIT 1) AS tb1 ON tb1.mID=keyword.movie_id'.format(title))
+
+k = cur.fetchone()
+keywords = k[0].split(",")
+
+cur.execute('SELECT movie.title,movie.year,ROUND(rating.imdb_score,1),rating.num_voted_users,tb1.genres,tb2.keywords FROM movie JOIN rating ON movie.id=rating.movie_id JOIN (SELECT GROUP_CONCAT(genre.genre) AS genres, genre.movie_id FROM genre GROUP BY genre.movie_id) AS tb1 ON movie.id=tb1.movie_id LEFT JOIN (SELECT GROUP_CONCAT(keyword.keyword) AS keywords, keyword.movie_id FROM keyword GROUP BY keyword.movie_id) AS tb2 ON movie.id=tb2.movie_id WHERE movie.id!={}'.format(iD))
+
+similarMovies = []
+while True:
+  t = cur.fetchone()
+  if t == None:
+    break
+
+  n,y,r,v,g,k = t
+
+  if n == None:
+    n = ""
+  if r == None:
+    r = ""
+  if v == None:
+    v = ""
+
+  g = g.split(",")
+  if k != None:
+    k = k.split(",")
+
+  gNum = 0
+  for x in genres:
+    if x in g:
+      gNum = gNum+1;
+
+  if gNum > 0:
+    kNum = 0
+    
+    if k != None:
+      for z in keywords:
+        if z in k:
+          kNum = kNum+1;
+
+    node = [n,y,gNum,kNum,r,v]
+    similarMovies.append(node)
+
+similarMovies.sort(key=lambda x: (int(x[2]), int(x[3]), float(x[4]), int(x[5])), reverse=True)
+
+counter = 1
+for m in similarMovies:
+  if counter > numOfMovies:
+    break
+
+  if m[1] != None:
+    print('{}. {} ({}) [{}, {}, {}, {}]'.format(counter,m[0],m[1],m[2],m[3],m[4],m[5]))
+  else:
+    print('{}. {} [{}, {}, {}, {}]'.format(counter,m[0],m[2],m[3],m[4],m[5]))
+
+  counter = counter + 1
+
+con.close()

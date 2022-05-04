@@ -1,0 +1,74 @@
+#!/usr/bin/python3
+
+"""
+COMP3311: TopRank Script - Assignment 2, T12020
+Madeleine Dobbie - z5112961
+"""
+
+import sqlite3,sys
+
+if len(sys.argv) != 4 and len(sys.argv) != 5 :
+  print("Usage:",sys.argv[0],"GENRES","NUM","STARTYEAR","ENDYEAR")
+  sys.exit(1)
+
+if len(sys.argv) == 4:
+  k = int(sys.argv[1])
+  start = int(sys.argv[2])
+  end = int(sys.argv[3])
+else:
+  genres = sys.argv[1].split("&")
+  k = int(sys.argv[2])
+  start = int(sys.argv[3])
+  end = int(sys.argv[4])
+
+con = sqlite3.connect('a2.db')
+
+cur = con.cursor()
+
+cur.execute('SELECT movie.title,movie.year,movie.content_rating,movie.lang,round(rating.imdb_score,1),rating.num_voted_users, GROUP_CONCAT(genre.genre,",") FROM genre JOIN movie ON genre.movie_id=movie.id JOIN rating ON movie.id=rating.movie_id GROUP BY movie.id ORDER BY rating.imdb_score DESC,rating.num_voted_users DESC')
+
+counter = 1
+later = []
+while True:
+  t = cur.fetchone()
+  if counter > k:
+    break
+  if t == None:
+    break
+  n,y,c,l,r,v,g = t
+
+  if n == None:
+    n = ""
+  if l == None:
+    l = ""
+  if r == None:
+    r = ""
+  if v == None:
+    v = ""
+  if g == None:
+    g = ""
+
+  if y != None:
+    if len(sys.argv) == 5:
+      check = 0
+      for w in genres:
+        if w in g:
+          check = check+1;
+      if check == len(genres):
+        if y >= start and y <= end:
+          if c != None:
+            print('{}. {} ({}, {}, {}) [{}, {}]'.format(counter,n,y,c,l,r,v))
+          else:
+            print('{}. {} ({}, {}) [{}, {}]'.format(counter,n,y,l,r,v))
+          counter = counter+1;
+    else:
+      if y >= start and y <= end:
+        if c != None:
+          print('{}. {} ({}, {}, {}) [{}, {}]'.format(counter,n,y,c,l,r,v))
+        else:
+          print('{}. {} ({}, {}) [{}, {}]'.format(counter,n,y,l,r,v))
+        counter = counter+1;
+  
+
+
+con.close()
